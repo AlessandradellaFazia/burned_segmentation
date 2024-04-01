@@ -1,0 +1,4 @@
+data/ems/*
+outputs/*
+pretrained/*
+*/__pycache__/*
