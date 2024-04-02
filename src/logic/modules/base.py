@@ -19,12 +19,14 @@ class BaseModule(LightningModule):
         config: dict,
         tiler: Optional[Callable] = None,
         predict_callback: Optional[Callable] = None,
+        reprojected=False,
     ):
         super().__init__()
         self.model = MODELS.build(config)
         self.model.cfg = config
         self.tiler = tiler
         self.predict_callback = predict_callback
+        self.reprojected = reprojected
         self.train_metrics = nn.ModuleDict(
             {
                 "train_f1": F1Score(task="binary", ignore_index=255, average="macro"),
@@ -64,9 +66,23 @@ class BaseModule(LightningModule):
         if "pretrained" not in config or config.pretrained is None:
             warnings.warn("No pretrained weights are specified")
             return
-        self.model.backbone.load_state_dict(torch.load(config.pretrained), strict=False)
+        if self.reprojected:
+            self.model.backbone.load_state_dict(
+                reproject(torch.load(config.pretrained)), strict=False
+            )
+        else:
+            self.model.backbone.load_state_dict(
+                torch.load(config.pretrained), strict=False
+            )
         for param in self.model.backbone.parameters():
             param.requires_grad = False
 
     def configure_optimizers(self) -> Any:
         return AdamW(self.parameters(), lr=1e-4, weight_decay=1e-4)
+
+
+def reproject(weight_dict):
+    weight_dict["patch_embed.projection.weight"] = weight_dict[
+        "patch_embed.projection.weight"
+    ][:, [0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2], :, :]
+    return weight_dict

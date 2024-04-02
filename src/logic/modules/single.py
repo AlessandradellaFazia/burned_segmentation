@@ -13,8 +13,9 @@ class SingleTaskModule(BaseModule):
         tiler: Callable[..., Any] | None = None,
         predict_callback: Callable[..., Any] | None = None,
         loss: str = "bce",
+        reprojected=False,
     ):
-        super().__init__(config, tiler, predict_callback)
+        super().__init__(config, tiler, predict_callback, reprojected=reprojected)
         if loss == "bce":
             self.criterion_decode = SoftBCEWithLogitsLoss(
                 ignore_index=255, pos_weight=torch.tensor(3.0)

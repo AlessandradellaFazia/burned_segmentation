@@ -1,4 +1,7 @@
 data/ems/*
 outputs/*
 pretrained/*
-*/__pycache__/*
+*.pyc
+*.pyo
+*.pyd
+__pycache__/

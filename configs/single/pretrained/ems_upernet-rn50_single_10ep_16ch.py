@@ -21,3 +21,4 @@ evaluation = dict(
     strategy=None,
     devices="auto",
 )
+##configs\single\pretrained\ems_upernet-rn50_single_50ep.py
