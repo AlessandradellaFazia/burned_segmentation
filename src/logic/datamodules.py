@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from logic.datasets import EMSCropDataset, EMSImageDataset
 from logic.samplers.samplers import SequentialTiledSampler, RandomTiledSampler
 
-from torchgeo.samplers import RandomBatchGeoSampler, GridGeoSampler
+# from torchgeo.samplers import RandomBatchGeoSampler, GridGeoSampler
 
 
 class EMSDataModule(LightningDataModule):
