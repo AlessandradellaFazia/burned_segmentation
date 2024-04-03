@@ -173,8 +173,8 @@ def process_inference(
 if __name__ == "__main__":
     seed_everything(95, workers=True)
     # cli()
-    cli("train -c configs\single\pretrained\swin\swin.py".split())
-    # cli("train -c configs\single\pretrained\ems_upernet-rn50_single_50ep.py".split())
+    # cli("train -c configs\single\pretrained\swin\swin.py".split())
+    cli("train -c configs\single\pretrained\ems_upernet-rn50_single_50ep.py".split())
     """cli(
         "test -e outputs\\upernet-rn50_single_no_pre_50ep_20240304_153937\\version_0 -c outputs\\upernet-rn50_single_no_pre_50ep_20240304_153937\\version_0\\weights\\model-epoch=02-val_loss=0.08.ckpt".split()
     )"""

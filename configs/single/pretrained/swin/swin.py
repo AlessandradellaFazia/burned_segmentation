@@ -41,7 +41,7 @@ model = dict(
         drop_path_rate=0.3,
         patch_norm=True,
     ),
-    decode_head=dict(in_channels=[96, 192, 384, 768], num_classes=1),
+    decode_head=dict(in_channels=[96, 192, 384, 768], num_classes=512),
     auxiliary_head=dict(in_channels=384, num_classes=1),
 )
 

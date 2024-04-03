@@ -26,8 +26,8 @@ class SingleTaskModule(BaseModule):
             )
 
     def training_step(self, batch: Any, batch_idx: int):
-        x = batch["S2L2A"]
-        y_del = batch["DEL"]
+        x = batch["S2L2A"] # batch,12,512,512
+        y_del = batch["DEL"] # batch, 512, 512 
 
         # lc = batch["ESA_LC"]
         # x = torch.cat([x, lc.unsqueeze(1)], dim=1)
