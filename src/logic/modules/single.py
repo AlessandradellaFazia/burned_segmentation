@@ -26,8 +26,8 @@ class SingleTaskModule(BaseModule):
             )
 
     def training_step(self, batch: Any, batch_idx: int):
-        x = batch["S2L2A"] # batch,12,512,512
-        y_del = batch["DEL"] # batch, 512, 512 
+        x = batch["S2L2A"]  # batch,12,512,512
+        y_del = batch["DEL"]  # batch, 512, 512
 
         # lc = batch["ESA_LC"]
         # x = torch.cat([x, lc.unsqueeze(1)], dim=1)
@@ -72,7 +72,7 @@ class SingleTaskModule(BaseModule):
         return loss
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
-        full_image = batch["S2L2A"]
+        full_image = batch["S2L2A"]  # forse [1, 12, h, w]
 
         def callback(batch: Any):
             del_out = self.model(batch)  # [b, 1, h, w]
@@ -81,6 +81,31 @@ class SingleTaskModule(BaseModule):
         full_pred = self.tiler(full_image[0], callback=callback)
         batch["pred"] = torch.sigmoid(full_pred)
         return batch
+
+    def custom_predict_step(self, full_image: Any, dataloader_idx: int = 0) -> Any:
+
+        def callback(batch: Any):
+            del_out = self.model(batch)  # [b, 1, h, w]
+            return del_out.squeeze(1)  # [b, h, w]
+
+        full_pred = self.tiler(full_image[0], callback=callback)
+        return torch.sigmoid(full_pred)
+
+    def batched_predict_step(self, batch: Any, dataloader_idx: int = 0) -> Any:
+        full_image = batch["S2L2A"]  # [b, 12, h, w]
+
+        def callback(batch: Any):
+            del_out = self.model(batch)  # [b, 1, h, w]
+            return del_out.squeeze(1)  # [b, h, w]
+
+        lista = []
+        for image in full_image:
+            pred = self.tiler(image, callback=callback)
+            pred = torch.sigmoid(pred).unsqueeze(0)
+            lista.append(pred)
+
+        probs = torch.cat(lista, dim=0)
+        return probs
 
     def on_predict_batch_end(
         self, outputs: Any | None, batch: Any, batch_idx: int, dataloader_idx: int

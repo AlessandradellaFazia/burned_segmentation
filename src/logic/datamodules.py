@@ -130,3 +130,15 @@ class EMSDataModule(LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=True,
         )
+
+    def batch_predict_dataloader(self, batch_size=4):
+        return DataLoader(
+            self.test_set,
+            sampler=SequentialTiledSampler(
+                self.test_set,
+                tile_size=self.patch_size,
+            ),
+            batch_size=batch_size,
+            num_workers=self.num_workers,
+            pin_memory=True,
+        )
