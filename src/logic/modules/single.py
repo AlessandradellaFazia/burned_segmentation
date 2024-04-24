@@ -78,9 +78,11 @@ class SingleTaskModule(BaseModule):
             del_out = self.model(batch)  # [b, 1, h, w]
             return del_out.squeeze(1)  # [b, h, w]
 
-        full_pred = self.tiler(full_image[0], callback=callback)
+        full_pred = self.tiler(
+            full_image[0], callback=callback
+        )  # full_image[0] 12, 1442, 1977
         batch["pred"] = torch.sigmoid(full_pred)
-        return batch
+        return batch  # # matrice composta solo di 0 e 1
 
     def custom_predict_step(self, full_image: Any, dataloader_idx: int = 0) -> Any:
 

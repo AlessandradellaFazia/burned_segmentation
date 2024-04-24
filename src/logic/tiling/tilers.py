@@ -13,6 +13,12 @@ from torch.nn import functional as func
 
 WINDOW_CACHE = dict()
 
+"""
+source code: 
+https://github.com/Vooban/Smoothly-Blend-Image-Patches/tree/master
+https://medium.com/vooban-ai/satellite-image-segmentation-a-workflow-with-u-net-7ff992b2a56e
+"""
+
 
 def _spline_window(window_size: int, power: int = 2) -> np.ndarray:
     """Generates a 1-dimensional spline of order 'power' (typically 2), in the designated
@@ -57,11 +63,11 @@ def _spline_2d(window_size: int, power: int = 2) -> torch.Tensor:
     if key in WINDOW_CACHE:
         wind = WINDOW_CACHE[key]
     else:
-        wind = _spline_window(window_size, power)
+        wind = _spline_window(window_size, power)  # 512,
         wind = np.expand_dims(
             np.expand_dims(wind, 1), 1
-        )  # SREENI: Changed from 3, 3, to 1, 1
-        wind = torch.from_numpy(wind * wind.transpose(1, 0, 2))
+        )  # 512,1,1 SREENI: Changed from 3, 3, to 1, 1
+        wind = torch.from_numpy(wind * wind.transpose(1, 0, 2))  # 512, 512, 1
         WINDOW_CACHE[key] = wind
     return wind
 
@@ -79,12 +85,16 @@ def pad_image(image: torch.Tensor, tile_size: int, subdivisions: int) -> torch.T
         torch.Tensor: same image, padded specularly by a certain amount in every direction
     """
     # compute the pad as (window - window/subdivisions)
-    pad = int(round(tile_size * (1 - 1.0 / subdivisions)))
+    pad = int(
+        round(tile_size * (1 - 1.0 / subdivisions))
+    )  # pad = 256, tile_size = 512, subdivision = 2
     # add pad pixels in height and width, nothing channel-wise
     # since torch.pad works on tensors, it requires a 4D array with shape [batch, channels, width, height]
     # padding is then defined as amount for each dimension and for each of the x/y axis
-    batch = image.permute(2, 0, 1).unsqueeze(0)
-    batch = func.pad(batch, (pad, pad, pad, pad), mode="reflect")
+    batch = image.permute(2, 0, 1).unsqueeze(0)  # 1, 12, 1442, 1977
+    batch = func.pad(
+        batch, (pad, pad, pad, pad), mode="reflect"
+    )  # 1, 12, 1954, 2489 <- # 1, 12, 256 + 1442 + 256, 256 + 1977 + 256
     return batch.squeeze(0).permute(1, 2, 0)
 
 
@@ -243,10 +253,14 @@ def predict_smooth_windowing(
     if channels_first:
         image = image.permute(1, 2, 0)
     width, height, _ = image.shape
-    padded = pad_image(image=image, tile_size=tile_size, subdivisions=subdivisions)
+    padded = pad_image(
+        image=image, tile_size=tile_size, subdivisions=subdivisions
+    )  # 1954, 2489, 12
     padded_width, padded_height, _ = padded.shape
     padded_variants = rotate_and_mirror(padded) if mirrored else [padded]
-    spline = _spline_2d(window_size=tile_size, power=2).to(image.device).squeeze(-1)
+    spline = (
+        _spline_2d(window_size=tile_size, power=2).to(image.device).squeeze(-1)
+    )  # [512,512]
 
     results = []
     for img in padded_variants:
@@ -258,8 +272,67 @@ def predict_smooth_windowing(
             batch_size=batch_size,
         ):
             # returns batch of channels-first, return to channels-last
+            # batch is 32,12,512,512
             pred_batch = prediction_fn(batch)  # .permute(0, 2, 3, 1)
             pred_batch = [tile * spline for tile in pred_batch]
+            canvas = reconstruct(
+                canvas, tile_size=tile_size, coords=coords, predictions=pred_batch
+            )
+        canvas /= subdivisions**2
+        results.append(canvas)
+
+    padded_result = undo_rotate_and_mirror(results) if mirrored else results[0]
+    prediction = unpad_image(
+        padded_result, tile_size=tile_size, subdivisions=subdivisions
+    )
+    return prediction[:width, :height]
+
+
+def predict_windowing(
+    image: torch.Tensor,
+    tile_size: int,
+    subdivisions: int,
+    prediction_fn: Callable,
+    batch_size: int = None,
+    channels_first: bool = False,
+    mirrored: bool = False,
+) -> np.ndarray:
+    """Allows to predict a large image in one go, dividing it in squared, fixed-size tiles and smoothly
+    interpolating over them to produce a single, coherent output with the same dimensions.
+
+    Args:
+        image (np.ndarray): input image, expected a 3D vector
+        tile_size (int): size of each squared tile
+        subdivisions (int): number of subdivisions over the single tile for overlaps
+        prediction_fn (Callable): callback that takes the input batch and returns an output tensor
+        batch_size (int, optional): size of each batch. Defaults to None.
+        channels_first (int, optional): whether the input image is channels-first or not
+        mirrored (bool, optional): whether to use dihedral predictions (every simmetry). Defaults to False.
+
+    Returns:
+        np.ndarray: numpy array with dimensions (w, h), containing smooth predictions
+    """
+    if channels_first:
+        image = image.permute(1, 2, 0)
+    width, height, _ = image.shape
+    padded = pad_image(
+        image=image, tile_size=tile_size, subdivisions=subdivisions
+    )  # 1954, 2489, 12
+    padded_width, padded_height, _ = padded.shape
+    padded_variants = rotate_and_mirror(padded) if mirrored else [padded]
+
+    results = []
+    for img in padded_variants:
+        canvas = torch.zeros((padded_width, padded_height), device=image.device)
+        for coords, batch in windowed_generator(
+            padded_image=img,
+            window_size=tile_size,
+            subdivisions=subdivisions,
+            batch_size=batch_size,
+        ):
+            # returns batch of channels-first, return to channels-last
+            # batch is 32,12,512,512
+            pred_batch = prediction_fn(batch)  # .permute(0, 2, 3, 1)
             canvas = reconstruct(
                 canvas, tile_size=tile_size, coords=coords, predictions=pred_batch
             )
@@ -317,6 +390,32 @@ class SmoothTiler(Tiler):
 
     def __call__(self, image: torch.Tensor, callback: Callable) -> torch.Tensor:
         return predict_smooth_windowing(
+            image=image,
+            tile_size=self.tile_size,
+            subdivisions=self.subdivisions,
+            prediction_fn=callback,
+            batch_size=self.batch_size,
+            channels_first=self.channels_first,
+            mirrored=self.mirrored,
+        )
+
+
+class SimpleTiler(Tiler):
+    def __init__(
+        self,
+        tile_size: int,
+        channels_first: bool = False,
+        subdivisions: int = 4,
+        batch_size: int = 32,
+        mirrored: bool = False,
+    ) -> None:
+        super().__init__(tile_size, channels_first)
+        self.subdivisions = subdivisions
+        self.batch_size = batch_size
+        self.mirrored = mirrored
+
+    def __call__(self, image: torch.Tensor, callback: Callable) -> torch.Tensor:
+        return predict_windowing(
             image=image,
             tile_size=self.tile_size,
             subdivisions=self.subdivisions,
