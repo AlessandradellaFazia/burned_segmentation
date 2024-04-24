@@ -13,7 +13,7 @@ from logic.datamodules import EMSDataModule
 from logic.io import read_raster_profile, write_raster
 
 from logic.modules.single import SingleTaskModule
-from logic.tiling.tilers import SmoothTiler
+from logic.tiling.tilers import SmoothTiler, SimpleTiler
 from logic.utils import exp_name_timestamp, find_best_checkpoint
 
 import pathlib
@@ -100,7 +100,8 @@ def test(
     assert models_path.exists(), f"Models folder not found in: {models_path}"
     # load training config
     config = Config.fromfile(config_path)
-
+    print(config)
+    config["evaluation"]["accelerator"] = "cpu"
     # datamodule
     log.info("Preparing the data module...")
     datamodule = EMSDataModule(**config["data"])
@@ -114,7 +115,7 @@ def test(
     loss = config["loss"] if "loss" in config else "bce"
     module_opts.update(loss=loss)
     if predict:
-        tiler = SmoothTiler(
+        tiler = SimpleTiler(
             tile_size=config["data"]["patch_size"],
             batch_size=config["data"]["batch_size_eval"],
             channels_first=True,
@@ -174,7 +175,10 @@ if __name__ == "__main__":
     seed_everything(95, workers=True)
     # cli()
     # cli("train -c configs\single\pretrained\swin\swin.py".split())
-    cli("train -c configs\single\pretrained\ems_upernet-rn50_single_50ep.py".split())
+    # cli("train -c configs\single\pretrained\ems_upernet-rn50_single_50ep.py".split())
+    cli(
+        "test -e outputs\\upernet-rn50_single_ssl4eo_50ep_20240313_153424\\version_0 --predict".split()
+    )
     """cli(
         "test -e outputs\\upernet-rn50_single_no_pre_50ep_20240304_153937\\version_0 -c outputs\\upernet-rn50_single_no_pre_50ep_20240304_153937\\version_0\\weights\\model-epoch=02-val_loss=0.08.ckpt".split()
     )"""
