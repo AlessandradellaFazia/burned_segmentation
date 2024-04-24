@@ -101,7 +101,6 @@ def test(
     # load training config
     config = Config.fromfile(config_path)
     print(config)
-    config["evaluation"]["accelerator"] = "cpu"
     # datamodule
     log.info("Preparing the data module...")
     datamodule = EMSDataModule(**config["data"])
@@ -131,14 +130,20 @@ def test(
     model_config = config["model"]
 
     log.info(f"versione stringa:{type(str(checkpoint))}")
-    backup = pathlib.PosixPath
-    try:
-        pathlib.PosixPath = pathlib.WindowsPath
-        module = SingleTaskModule.load_from_checkpoint(
-            str(checkpoint), "cpu", **module_opts
-        )
-    finally:
-        pathlib.PosixPath = backup
+    import os
+
+    if os.name == "nt":
+        backup = pathlib.PosixPath
+        try:
+            pathlib.PosixPath = pathlib.WindowsPath
+            module = SingleTaskModule.load_from_checkpoint(
+                str(checkpoint), "cpu", **module_opts
+            )
+        finally:
+            pathlib.PosixPath = backup
+    else:
+        module = SingleTaskModule.load_from_checkpoint(str(checkpoint), **module_opts)
+
     print(module)
 
     logger = TensorBoardLogger(
@@ -173,12 +178,15 @@ def process_inference(
 
 if __name__ == "__main__":
     seed_everything(95, workers=True)
-    # cli()
+    cli()
     # cli("train -c configs\single\pretrained\swin\swin.py".split())
+    """cli(
+        "train -c configs/single/pretrained/ems_upernet-rn50_single_10ep_16ch.py".split()
+    )"""
     # cli("train -c configs\single\pretrained\ems_upernet-rn50_single_50ep.py".split())
-    cli(
+    """cli(
         "test -e outputs\\upernet-rn50_single_ssl4eo_50ep_20240313_153424\\version_0 --predict".split()
-    )
+    )"""
     """cli(
         "test -e outputs\\upernet-rn50_single_no_pre_50ep_20240304_153937\\version_0 -c outputs\\upernet-rn50_single_no_pre_50ep_20240304_153937\\version_0\\weights\\model-epoch=02-val_loss=0.08.ckpt".split()
     )"""
