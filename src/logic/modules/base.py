@@ -10,6 +10,7 @@ from torchmetrics import F1Score, JaccardIndex, Precision, Recall
 from mmseg.registry import MODELS
 from logic.models.encoder_decoder import CustomEncoderDecoder
 from logic.models.uper import CustomUPerHead
+from logic.models.segformer import CustomSegformerHead
 from mmseg.registry import MODELS
 
 

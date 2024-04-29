@@ -2,7 +2,7 @@ from datetime import datetime
 from functools import partial
 from pathlib import Path
 
-from argdantic import ArgField, ArgParser
+import argparse
 from loguru import logger as log
 from mmengine import Config
 from pytorch_lightning import Trainer, seed_everything
@@ -17,27 +17,28 @@ from logic.tiling.tilers import SmoothTiler, SimpleTiler
 from logic.utils import exp_name_timestamp, find_best_checkpoint
 
 import pathlib
+import os
+
+cli = argparse.ArgumentParser()
+cli.add_argument("mode", choices=["train", "test"])
+cli.add_argument("-c", "--config_path", type=Path)
+cli.add_argument("-e", "--experiment_path", type=Path)
+cli.add_argument("-cp", "--checkpoint_path", type=Path)
+cli.add_argument("-p", "--predict", action="store_true")
 
 
-cli = ArgParser()
-
-
-@cli.command()
-def train(
-    cfg_path: Path = ArgField("-c", description="Path to the config file."),
-    keep_name: bool = ArgField(
-        "-k",
-        default=False,
-        description="Keep the experiment name as specified in the config file.",
-    ),
-):
+def train(cfg_path: Path):
     log.info(f"Loading config from: {cfg_path}")
     config = Config.fromfile(cfg_path)
     # set the experiment name
     assert "name" in config, "Experiment name not specified in config."
-    exp_name = exp_name_timestamp(config["name"]) if not keep_name else config["name"]
+    exp_name = exp_name_timestamp(config["name"])
     config["name"] = exp_name
     log.info(f"Experiment name: {exp_name}")
+
+    if os.name == "nt":
+        config.trainer.accelerator = "cpu"
+        config.evaluation.accelerator = "cpu"
 
     # datamodule
     log.info("Preparing the data module...")
@@ -76,18 +77,7 @@ def train(
     trainer.fit(module, datamodule=datamodule)
 
 
-@cli.command()
-def test(
-    exp_path: Path = ArgField("-e", description="Path to the experiment folder."),
-    checkpoint: Path = ArgField(
-        "-c",
-        default=None,
-        description="Path to the checkpoint file. If not specified, the best checkpoint will be loaded.",
-    ),
-    predict: bool = ArgField(
-        default=False, description="Generate predictions on the test set."
-    ),
-):
+def test(exp_path: Path, checkpoint: Path, predict: bool):
 
     log.info(f"Loading experiment from: {exp_path}")
     log.info(str(type(exp_path)))
@@ -100,7 +90,6 @@ def test(
     assert models_path.exists(), f"Models folder not found in: {models_path}"
     # load training config
     config = Config.fromfile(config_path)
-    print(config)
     # datamodule
     log.info("Preparing the data module...")
     datamodule = EMSDataModule(**config["data"])
@@ -130,7 +119,6 @@ def test(
     model_config = config["model"]
 
     log.info(f"versione stringa:{type(str(checkpoint))}")
-    import os
 
     if os.name == "nt":
         backup = pathlib.PosixPath
@@ -143,8 +131,6 @@ def test(
             pathlib.PosixPath = backup
     else:
         module = SingleTaskModule.load_from_checkpoint(str(checkpoint), **module_opts)
-
-    print(module)
 
     logger = TensorBoardLogger(
         save_dir="outputs", name=config["name"], version=exp_path.stem
@@ -178,19 +164,23 @@ def process_inference(
 
 if __name__ == "__main__":
     seed_everything(95, workers=True)
-    cli()
-    # cli("train -c configs\single\pretrained\swin\swin.py".split())
-    """cli(
-        "train -c configs/single/pretrained/ems_upernet-rn50_single_10ep_16ch.py".split()
-    )"""
-    # cli("train -c configs\single\pretrained\ems_upernet-rn50_single_50ep.py".split())
-    """cli(
-        "test -e outputs\\upernet-rn50_single_ssl4eo_50ep_20240313_153424\\version_0 --predict".split()
-    )"""
-    """cli(
-        "test -e outputs\\upernet-rn50_single_no_pre_50ep_20240304_153937\\version_0 -c outputs\\upernet-rn50_single_no_pre_50ep_20240304_153937\\version_0\\weights\\model-epoch=02-val_loss=0.08.ckpt".split()
-    )"""
+    """test_str = (
+        "train -c configs\\multi\\pretrained\\dice\\ems_segformer-mit-b3_multi_50ep.py"
+    )
+    args = cli.parse_args(test_str.split())"""
+
+    args = cli.parse_args()
+
+    match args.mode:
+        case "train":
+            train(cfg_path=args.config_path)
+        case "test":
+            test(
+                exp_path=args.experiment_path,
+                checkpoint=args.checkpoint_path,
+                predict=args.predict,
+            )
 
     """cli(
-        "test -e outputs\\upernet-rn50_single_no_pre_50ep_20240304_153937\\version_0 -c outputs\\upernet-rn50_single_no_pre_50ep_20240304_153937\\version_0\\weights\\model-epoch=02-val_loss=0.08.ckpt --predict".split()
+        "train -c configs/single/pretrained/ems_upernet-rn50_single_10ep_16ch.py".split()
     )"""

@@ -7,3 +7,8 @@ pretrained/*
 __pycache__/
 weights/*
 *.txt
+outputs.zip
+.vscode/*
+notebooks/*
+tools/prova_args.py
+tools/mit_conversion.ipynb
