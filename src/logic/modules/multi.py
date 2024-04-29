@@ -37,42 +37,72 @@ class MultiModule(BaseModule):
         self.train_metrics_aux = nn.ModuleDict(
             {
                 "train_f1_aux": F1Score(
-                    task="multiclass", ignore_index=255, average="macro"
+                    task="multiclass",
+                    ignore_index=255,
+                    num_classes=num_classes,
+                    average="macro",
                 ),
                 "train_iou_aux": JaccardIndex(
-                    task="multiclass", ignore_index=255, average="macro"
+                    task="multiclass",
+                    ignore_index=255,
+                    num_classes=num_classes,
+                    average="macro",
                 ),
             }
         )
         self.val_metrics_aux = nn.ModuleDict(
             {
                 "val_f1_aux": F1Score(
-                    task="multiclass", ignore_index=255, average="macro"
+                    task="multiclass",
+                    ignore_index=255,
+                    num_classes=num_classes,
+                    average="macro",
                 ),
                 "val_iou_aux": JaccardIndex(
-                    task="multiclass", ignore_index=255, average="macro"
+                    task="multiclass",
+                    ignore_index=255,
+                    num_classes=num_classes,
+                    average="macro",
                 ),
                 "val_precision_aux": Precision(
-                    task="multiclass", ignore_index=255, average="macro"
+                    task="multiclass",
+                    ignore_index=255,
+                    num_classes=num_classes,
+                    average="macro",
                 ),
                 "val_recall_aux": Recall(
-                    task="multiclass", ignore_index=255, average="macro"
+                    task="multiclass",
+                    ignore_index=255,
+                    num_classes=num_classes,
+                    average="macro",
                 ),
             }
         )
         self.test_metrics_aux = nn.ModuleDict(
             {
                 "test_f1_aux": F1Score(
-                    task="multiclass", ignore_index=255, average="macro"
+                    task="multiclass",
+                    ignore_index=255,
+                    num_classes=num_classes,
+                    average="macro",
                 ),
                 "test_iou_aux": JaccardIndex(
-                    task="multiclass", ignore_index=255, average="macro"
+                    task="multiclass",
+                    ignore_index=255,
+                    num_classes=num_classes,
+                    average="macro",
                 ),
                 "test_precision_aux": Precision(
-                    task="multiclass", ignore_index=255, average="macro"
+                    task="multiclass",
+                    ignore_index=255,
+                    num_classes=num_classes,
+                    average="macro",
                 ),
                 "test_recall_aux": Recall(
-                    task="multiclass", ignore_index=255, average="macro"
+                    task="multiclass",
+                    ignore_index=255,
+                    num_classes=num_classes,
+                    average="macro",
                 ),
             }
         )
@@ -85,7 +115,7 @@ class MultiModule(BaseModule):
             y_lc[y_del == 1] = 255
         decode_out, auxiliary_out = self.model(x)
         loss_decode = self.criterion_decode(decode_out.squeeze(1), y_del.float())
-        loss_auxiliary = self.criterion_auxiliary(auxiliary_out, y_lc.long())
+        loss_auxiliary = self.criterion_aux(auxiliary_out, y_lc.long())
         loss = loss_decode + self.aux_factor * loss_auxiliary
 
         self.log(

@@ -13,6 +13,7 @@ from logic.datamodules import EMSDataModule
 from logic.io import read_raster_profile, write_raster
 
 from logic.modules.single import SingleTaskModule
+from logic.modules.multi import MultiModule
 from logic.tiling.tilers import SmoothTiler, SimpleTiler
 from logic.utils import exp_name_timestamp, find_best_checkpoint
 
@@ -48,6 +49,11 @@ def train(cfg_path: Path):
     log.info("Preparing the model...")
     model_config = config["model"]
     loss = config["loss"] if "loss" in config else "bce"
+    module_class = (
+        MultiModule
+        if "aux_classes" in model_config["decode_head"]
+        else SingleTaskModule
+    )
     reprojected = config["reprojected"] if "reprojected" in config else None
 
     module = SingleTaskModule(model_config, loss=loss, reprojected=reprojected)
@@ -164,12 +170,12 @@ def process_inference(
 
 if __name__ == "__main__":
     seed_everything(95, workers=True)
-    """test_str = (
-        "train -c configs\\multi\\pretrained\\dice\\ems_segformer-mit-b3_multi_50ep.py"
-    )
-    args = cli.parse_args(test_str.split())"""
 
-    args = cli.parse_args()
+    if os.name == "nt":
+        test_str = "train -c configs\\multi\\pretrained\\dice\\ems_segformer-mit-b3_multi_50ep.py"
+        args = cli.parse_args(test_str.split())
+    else:
+        args = cli.parse_args()
 
     match args.mode:
         case "train":
