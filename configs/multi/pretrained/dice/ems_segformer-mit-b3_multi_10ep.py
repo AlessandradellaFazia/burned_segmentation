@@ -4,7 +4,7 @@ _base_ = [
 ]
 name = "segformer-mit-b3_multi_imnet_auxv2_50ep"
 trainer = dict(
-    max_epochs=50,
+    max_epochs=10,
     precision=16,
     accelerator="gpu",
     strategy=None,
@@ -21,4 +21,4 @@ evaluation = dict(
     strategy=None,
     devices=1,
 )
-loss="dice"
+loss = "dice"

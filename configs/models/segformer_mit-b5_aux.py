@@ -1,5 +1,5 @@
 _base_ = ["./segformer_mit-b0.py"]
-norm_cfg = dict(type="SyncBN", requires_grad=True)
+norm_cfg = dict(type="BN", requires_grad=True)
 model = dict(
     backbone=dict(embed_dims=64, num_layers=[3, 6, 40, 3]),
     decode_head=dict(

@@ -1,9 +1,8 @@
 # model settings
-norm_cfg = dict(type="SyncBN", requires_grad=True)
+norm_cfg = dict(type="BN", requires_grad=True)
 model = dict(
     type="CustomEncoderDecoder",
     data_preprocessor=None,
-    
     backbone=dict(
         type="VisionTransformer",
         img_size=(512, 512),
@@ -25,7 +24,12 @@ model = dict(
         norm_eval=False,
         interpolate_mode="bicubic",
     ),
-    neck=dict(type="MultiLevelNeck", in_channels=[384, 384, 384, 384], out_channels=384, scales=[4, 2, 1, 0.5]),
+    neck=dict(
+        type="MultiLevelNeck",
+        in_channels=[384, 384, 384, 384],
+        out_channels=384,
+        scales=[4, 2, 1, 0.5],
+    ),
     decode_head=dict(
         type="CustomUPerHead",
         in_channels=[384, 384, 384, 384],

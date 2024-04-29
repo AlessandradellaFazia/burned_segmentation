@@ -1,9 +1,8 @@
 # model settings
-norm_cfg = dict(type="SyncBN", requires_grad=True)
+norm_cfg = dict(type="BN", requires_grad=True)
 model = dict(
     type="CustomEncoderDecoder",
     data_preprocessor=None,
-    
     backbone=dict(
         type="ResNet",
         depth=50,

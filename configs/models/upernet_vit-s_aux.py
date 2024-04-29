@@ -1,5 +1,5 @@
 # model settings
-norm_cfg = dict(type="SyncBN", requires_grad=True)
+norm_cfg = dict(type="BN", requires_grad=True)
 model = dict(
     type="CustomEncoderDecoder",
     data_preprocessor=None,
@@ -25,7 +25,12 @@ model = dict(
         interpolate_mode="bicubic",
         pretrained="pretrained/mmseg_vit_s_no_pos.pth",
     ),
-    neck=dict(type="MultiLevelNeck", in_channels=[384, 384, 384, 384], out_channels=384, scales=[4, 2, 1, 0.5]),
+    neck=dict(
+        type="MultiLevelNeck",
+        in_channels=[384, 384, 384, 384],
+        out_channels=384,
+        scales=[4, 2, 1, 0.5],
+    ),
     decode_head=dict(
         type="CustomUPerHead",
         in_channels=[384, 384, 384, 384],
