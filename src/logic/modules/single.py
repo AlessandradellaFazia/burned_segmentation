@@ -13,7 +13,8 @@ class SingleTaskModule(BaseModule):
         tiler: Callable[..., Any] | None = None,
         predict_callback: Callable[..., Any] | None = None,
         loss: str = "bce",
-        reprojected=False,
+        reprojected: bool = False,
+        test_type: str = "standard",
     ):
         super().__init__(config, tiler, predict_callback, reprojected=reprojected)
         if loss == "bce":
@@ -24,6 +25,10 @@ class SingleTaskModule(BaseModule):
             self.criterion_decode = DiceLoss(
                 mode="binary", from_logits=True, ignore_index=255
             )
+        if test_type == "standard":
+            self.test_step = self.standard_test_step
+        else:
+            self.test_step = self.full_test_step
 
     def training_step(self, batch: Any, batch_idx: int):
         x = batch["S2L2A"]  # batch,12,512,512
@@ -56,7 +61,9 @@ class SingleTaskModule(BaseModule):
             self.log(metric_name, metric, on_epoch=True, prog_bar=True)
         return loss
 
-    def test_step(self, batch: Any, batch_idx: int):
+    def standard_test_step(self, batch: Any, batch_idx: int):
+        print("standard test step")
+
         x = batch["S2L2A"]
         y_del = batch["DEL"]
         # lc = batch["ESA_LC"]
@@ -71,8 +78,26 @@ class SingleTaskModule(BaseModule):
             self.log(metric_name, metric, on_epoch=True, logger=True)
         return loss
 
+    def full_test_step(self, batch: Any, batch_idx: int):
+        print("full test step")
+
+        full_image = batch["S2L2A"]  # [1, 12, h, w]
+        y_del = batch["DEL"].squeeze(1)  # [1, 1, h, w]
+
+        def callback(batch: Any):
+            del_out = self.model(batch)  # [b, 1, h, w]
+            return del_out.squeeze(1)  # [b, h, w]
+
+        full_pred = self.tiler(full_image[0], callback=callback)
+        full_pred = torch.sigmoid(full_pred)
+
+        for metric_name, metric in self.test_metrics.items():
+            metric(full_pred, y_del.float())
+            self.log(metric_name, metric, on_epoch=True, logger=True)
+        return
+
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
-        full_image = batch["S2L2A"]  # forse [1, 12, h, w]
+        full_image = batch["S2L2A"]  # [1, 12, h, w]
 
         def callback(batch: Any):
             del_out = self.model(batch)  # [b, 1, h, w]

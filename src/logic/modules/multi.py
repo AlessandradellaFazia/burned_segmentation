@@ -195,7 +195,7 @@ class MultiModule(BaseModule):
             y_lc[y_del == 1] = 255
         decode_out, auxiliary_out = self.model(x)
         loss_decode = self.criterion_decode(decode_out.squeeze(1), y_del.float())
-        loss_auxiliary = self.criterion_auxiliary(auxiliary_out, y_lc.long())
+        loss_auxiliary = self.criterion_aux(auxiliary_out, y_lc.long())
         loss = loss_decode + self.aux_factor * loss_auxiliary
 
         self.log(

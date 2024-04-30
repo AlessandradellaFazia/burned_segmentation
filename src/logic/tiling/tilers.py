@@ -115,7 +115,10 @@ def unpad_image(
     # compute the same amount as before, window - window/subdivisions
     pad = int(round(tile_size * (1 - 1.0 / subdivisions)))
     # crop the image left, right, top and bottom
-    result = padded_image[pad:-pad, pad:-pad]
+
+    result = padded_image[
+        pad : padded_image.shape[0] - pad, pad : padded_image.shape[1] - pad
+    ]
     return result
 
 
@@ -251,7 +254,7 @@ def predict_smooth_windowing(
         np.ndarray: numpy array with dimensions (w, h), containing smooth predictions
     """
     if channels_first:
-        image = image.permute(1, 2, 0)
+        image = image.permute(1, 2, 0)  # from 12,w,h to w,h,12
     width, height, _ = image.shape
     padded = pad_image(
         image=image, tile_size=tile_size, subdivisions=subdivisions

@@ -21,11 +21,14 @@ import pathlib
 import os
 
 cli = argparse.ArgumentParser()
-cli.add_argument("mode", choices=["train", "test"])
+cli.add_argument("mode", choices=["train", "test", "test_full"])
 cli.add_argument("-c", "--config_path", type=Path)
 cli.add_argument("-e", "--experiment_path", type=Path)
 cli.add_argument("-cp", "--checkpoint_path", type=Path)
 cli.add_argument("-p", "--predict", action="store_true")
+cli.add_argument("-ts", "--tile_size", type=int)
+cli.add_argument("-tt", "--tiler_type", type=str, choices=["simple", "smooth"])
+cli.add_argument("-sub", "--subdivisions", type=int)
 
 
 def train(cfg_path: Path):
@@ -56,7 +59,7 @@ def train(cfg_path: Path):
     )
     reprojected = config["reprojected"] if "reprojected" in config else None
 
-    module = SingleTaskModule(model_config, loss=loss, reprojected=reprojected)
+    module = module_class(model_config, loss=loss, reprojected=reprojected)
     module.init_pretrained()
 
     log.info("Preparing the trainer...")
@@ -68,8 +71,8 @@ def train(cfg_path: Path):
     callbacks = [
         ModelCheckpoint(
             dirpath=Path(logger.log_dir) / "weights",
-            monitor="epoch",
-            mode="max",
+            monitor="val_loss",
+            mode="min",
             filename="model-{epoch:02d}-{val_loss:.2f}",
             save_top_k=6,
             every_n_epochs=10,
@@ -86,7 +89,6 @@ def train(cfg_path: Path):
 def test(exp_path: Path, checkpoint: Path, predict: bool):
 
     log.info(f"Loading experiment from: {exp_path}")
-    log.info(str(type(exp_path)))
 
     config_path = exp_path / "config.py"
     models_path = exp_path / "weights"
@@ -96,6 +98,9 @@ def test(exp_path: Path, checkpoint: Path, predict: bool):
     assert models_path.exists(), f"Models folder not found in: {models_path}"
     # load training config
     config = Config.fromfile(config_path)
+    if os.name == "nt":
+        config.trainer.accelerator = "cpu"
+        config.evaluation.accelerator = "cpu"
     # datamodule
     log.info("Preparing the data module...")
     datamodule = EMSDataModule(**config["data"])
@@ -123,20 +128,24 @@ def test(exp_path: Path, checkpoint: Path, predict: bool):
     # prepare the model
     log.info("Preparing the model...")
     model_config = config["model"]
-
+    module_class = (
+        MultiModule
+        if "aux_classes" in model_config["decode_head"]
+        else SingleTaskModule
+    )
     log.info(f"versione stringa:{type(str(checkpoint))}")
 
     if os.name == "nt":
         backup = pathlib.PosixPath
         try:
             pathlib.PosixPath = pathlib.WindowsPath
-            module = SingleTaskModule.load_from_checkpoint(
+            module = module_class.load_from_checkpoint(
                 str(checkpoint), "cpu", **module_opts
             )
         finally:
             pathlib.PosixPath = backup
     else:
-        module = SingleTaskModule.load_from_checkpoint(str(checkpoint), **module_opts)
+        module = module_class.load_from_checkpoint(str(checkpoint), **module_opts)
 
     logger = TensorBoardLogger(
         save_dir="outputs", name=config["name"], version=exp_path.stem
@@ -149,6 +158,90 @@ def test(exp_path: Path, checkpoint: Path, predict: bool):
         log.info("Starting the testing...")
         trainer = Trainer(**config["evaluation"], logger=logger)
         trainer.test(module, datamodule=datamodule)
+
+
+def test_full(
+    exp_path: Path,
+    checkpoint: Path,
+    tile_size: int,
+    subdivisions,
+    tiler_type="simple",
+):
+    log.info(f"Test full images")
+    log.info(f"Loading experiment from: {exp_path}")
+
+    config_path = exp_path / "config.py"
+    models_path = exp_path / "weights"
+
+    # asserts to check the experiment folders
+    assert exp_path.exists(), "Experiment folder does not exist."
+    assert config_path.exists(), f"Config file not found in: {config_path}"
+    assert models_path.exists(), f"Models folder not found in: {models_path}"
+
+    # load training config
+    config = Config.fromfile(config_path)
+    if os.name == "nt":
+        config.trainer.accelerator = "cpu"
+        config.evaluation.accelerator = "cpu"
+    # default arguments
+    tile_size = tile_size if tile_size else config["data"]["patch_size"]
+    subdivisions = subdivisions if subdivisions else 2
+    tiler_type = tiler_type if tiler_type else "simple"
+    assert tiler_type in ["simple", "smooth"]
+
+    # datamodule
+    log.info("Preparing the data module...")
+    datamodule = EMSDataModule(**config["data"])
+
+    # prepare the model
+    checkpoint = checkpoint or find_best_checkpoint(models_path, "val_loss", "min")
+    log.info(f"Using checkpoint: {checkpoint}")
+
+    module_opts = dict(config=config["model"])
+    loss = config["loss"] if "loss" in config else "bce"
+    module_opts.update(loss=loss)
+    log.info(
+        f"Tile size: {tile_size}, subdivisions: {subdivisions}, tiler type: {tiler_type}"
+    )
+    TilerClass = SmoothTiler if tiler_type == "smooth" else SimpleTiler
+    tiler = TilerClass(
+        tile_size=tile_size,
+        batch_size=config["data"]["batch_size_eval"],
+        channels_first=True,
+        mirrored=False,
+        subdivisions=subdivisions,
+    )
+    module_opts.update(tiler=tiler)
+    module_opts.update(test_type="full")
+
+    # prepare the model
+    log.info("Preparing the model...")
+    model_config = config["model"]
+    module_class = (
+        MultiModule
+        if "aux_classes" in model_config["decode_head"]
+        else SingleTaskModule
+    )
+
+    if os.name == "nt":
+        backup = pathlib.PosixPath
+        try:
+            pathlib.PosixPath = pathlib.WindowsPath
+            module = module_class.load_from_checkpoint(
+                str(checkpoint), "cpu", **module_opts
+            )
+        finally:
+            pathlib.PosixPath = backup
+    else:
+        module = module_class.load_from_checkpoint(str(checkpoint), **module_opts)
+
+    logger = TensorBoardLogger(
+        save_dir="outputs", name=config["name"], version=exp_path.stem
+    )
+
+    log.info("Starting the testing...")
+    trainer = Trainer(**config["evaluation"], logger=logger)
+    trainer.test(module, datamodule=datamodule)
 
 
 def process_inference(
@@ -172,8 +265,9 @@ if __name__ == "__main__":
     seed_everything(95, workers=True)
 
     if os.name == "nt":
-        test_str = "train -c configs\\multi\\pretrained\\dice\\ems_segformer-mit-b3_multi_50ep.py"
+        test_str = "test_full -e outputs\\upernet-rn50_single_ssl4eo_50ep_20240313_153424\\version_0 -ts 128 -tt smooth -sub 8"
         args = cli.parse_args(test_str.split())
+        print(args)
     else:
         args = cli.parse_args()
 
@@ -185,6 +279,14 @@ if __name__ == "__main__":
                 exp_path=args.experiment_path,
                 checkpoint=args.checkpoint_path,
                 predict=args.predict,
+            )
+        case "test_full":
+            test_full(
+                exp_path=args.experiment_path,
+                checkpoint=args.checkpoint_path,
+                tile_size=args.tile_size,
+                subdivisions=args.subdivisions,
+                tiler_type=args.tiler_type,
             )
 
     """cli(
