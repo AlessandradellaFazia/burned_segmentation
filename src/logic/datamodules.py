@@ -29,6 +29,7 @@ class EMSDataModule(LightningDataModule):
         batch_size_eval: int = 16,
         num_workers: int = 2,
         derivative_idx=False,
+        full_test_type: bool = False,
     ) -> None:
         super().__init__()
         self.root = root
@@ -38,6 +39,7 @@ class EMSDataModule(LightningDataModule):
         self.batch_size_eval = batch_size_eval
         self.num_workers = num_workers
         self.derivative_idx = derivative_idx
+        self.full_test_type = full_test_type
         self.train_transform = A.Compose(
             [
                 A.HorizontalFlip(p=0.5),
@@ -73,13 +75,22 @@ class EMSDataModule(LightningDataModule):
                 derivative_idx=self.derivative_idx,
             )
         elif stage == "test":
-            self.test_set = EMSCropDataset(
-                root=self.root,
-                subset="test",
-                modalities=self.modalities,
-                transform=self.eval_transform,
-                derivative_idx=self.derivative_idx,
-            )
+            if self.full_test_type:
+                self.test_set = EMSImageDataset(
+                    root=self.root,
+                    subset="test",
+                    modalities=self.modalities,
+                    transform=self.eval_transform,
+                    derivative_idx=self.derivative_idx,
+                )
+            else:
+                self.test_set = EMSCropDataset(
+                    root=self.root,
+                    subset="test",
+                    modalities=self.modalities,
+                    transform=self.eval_transform,
+                    derivative_idx=self.derivative_idx,
+                )
         elif stage == "predict":
             self.pred_set = EMSImageDataset(
                 root=self.root,
@@ -111,6 +122,15 @@ class EMSDataModule(LightningDataModule):
         )
 
     def test_dataloader(self):
+        if self.full_test_type:
+            return DataLoader(
+                self.test_set,
+                shuffle=False,
+                batch_size=1,
+                num_workers=self.num_workers,
+                pin_memory=True,
+            )
+
         return DataLoader(
             self.test_set,
             sampler=SequentialTiledSampler(

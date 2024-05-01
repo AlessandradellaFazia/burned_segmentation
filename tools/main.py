@@ -191,6 +191,7 @@ def test_full(
 
     # datamodule
     log.info("Preparing the data module...")
+    config["data"]["full_test_type"] = True
     datamodule = EMSDataModule(**config["data"])
 
     # prepare the model

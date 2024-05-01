@@ -26,9 +26,9 @@ class SingleTaskModule(BaseModule):
                 mode="binary", from_logits=True, ignore_index=255
             )
         if test_type == "standard":
-            self.predict_step = self.standard_predict_step
+            self.test_step = self.standard_test_step
         else:
-            self.predict_step = self.full_predict_step
+            self.test_step = self.full_test_step
 
     def training_step(self, batch: Any, batch_idx: int):
         x = batch["S2L2A"]  # batch,12,512,512
@@ -61,7 +61,7 @@ class SingleTaskModule(BaseModule):
             self.log(metric_name, metric, on_epoch=True, prog_bar=True)
         return loss
 
-    def test_step(self, batch: Any, batch_idx: int):
+    def standard_test_step(self, batch: Any, batch_idx: int):
 
         x = batch["S2L2A"]
         y_del = batch["DEL"]
@@ -77,8 +77,7 @@ class SingleTaskModule(BaseModule):
             self.log(metric_name, metric, on_epoch=True, logger=True)
         return loss
 
-    def full_predict_step(self, batch: Any, batch_idx: int):
-        print("full predict step")
+    def full_test_step(self, batch: Any, batch_idx: int):
 
         full_image = batch["S2L2A"]  # [1, 12, h, w]
         y_del = batch["DEL"].squeeze(1)  # [1, 1, h, w]
@@ -95,9 +94,7 @@ class SingleTaskModule(BaseModule):
             self.log(metric_name, metric, on_epoch=True, logger=True)
         return
 
-    def standard_predict_step(
-        self, batch: Any, batch_idx: int, dataloader_idx: int = 0
-    ) -> Any:
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
         print("standard predict step")
 
         full_image = batch["S2L2A"]  # [1, 12, h, w]
