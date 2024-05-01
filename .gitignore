@@ -12,3 +12,4 @@ outputs.zip
 notebooks/*
 tools/prova_args.py
 tools/mit_conversion.ipynb
+*.zip

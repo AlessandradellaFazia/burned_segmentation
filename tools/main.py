@@ -241,7 +241,7 @@ def test_full(
 
     log.info("Starting the testing...")
     trainer = Trainer(**config["evaluation"], logger=logger)
-    trainer.test(module, datamodule=datamodule)
+    trainer.predict(module, datamodule=datamodule)
 
 
 def process_inference(
