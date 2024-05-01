@@ -1,10 +1,10 @@
 _base_ = [
     "../../models/upernet_rn50_16ch.py",
-    "../../datasets/ems_16ch.py",
+    "../../datasets/ems.py",
 ]
 name = "upernet-rn50_single_ssl4eo_50ep"
 trainer = dict(
-    max_epochs=3,
+    max_epochs=10,
     precision=16,
     accelerator="gpu",
     strategy=None,
@@ -21,4 +21,5 @@ evaluation = dict(
     strategy=None,
     devices="auto",
 )
+reprojected = True
 ##configs\single\pretrained\ems_upernet-rn50_single_50ep.py

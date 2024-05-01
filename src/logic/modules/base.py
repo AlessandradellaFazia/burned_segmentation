@@ -20,7 +20,8 @@ class BaseModule(LightningModule):
         config: dict,
         tiler: Optional[Callable] = None,
         predict_callback: Optional[Callable] = None,
-        reprojected=False,
+        reprojected: bool = False,
+        layer_to_reproject: str = None,
     ):
         super().__init__()
         self.model = MODELS.build(config)
@@ -28,6 +29,7 @@ class BaseModule(LightningModule):
         self.tiler = tiler
         self.predict_callback = predict_callback
         self.reprojected = reprojected
+        self.layer_to_reproject = layer_to_reproject
         self.train_metrics = nn.ModuleDict(
             {
                 "train_f1": F1Score(task="binary", ignore_index=255, average="macro"),
@@ -69,7 +71,7 @@ class BaseModule(LightningModule):
             return
         if self.reprojected:
             self.model.backbone.load_state_dict(
-                reproject(torch.load(config.pretrained)), strict=False
+                self.reproject(torch.load(config.pretrained)), strict=False
             )
         else:
             self.model.backbone.load_state_dict(
@@ -81,9 +83,11 @@ class BaseModule(LightningModule):
     def configure_optimizers(self) -> Any:
         return AdamW(self.parameters(), lr=1e-4, weight_decay=1e-4)
 
-
-def reproject(weight_dict):
-    weight_dict["patch_embed.projection.weight"] = weight_dict[
-        "patch_embed.projection.weight"
-    ][:, [0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2], :, :]
-    return weight_dict
+    def reproject(self, weight_dict):
+        current = weight_dict[self.layer_to_reproject].shape[1]
+        desidered = self.model.cfg.backbone.in_channels
+        indices = [x % current for x in list(range(desidered))]
+        weight_dict[self.layer_to_reproject] = weight_dict[self.layer_to_reproject][
+            :, indices, :, :
+        ]
+        return weight_dict

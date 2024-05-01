@@ -1,19 +1,20 @@
 _base_ = [
-    "../../models/upernet_rn50_copy.py",
+    "../../models/upernet_rn50_swin.py",
     "../../datasets/ems.py",
 ]
 name = "upernet-swin"
 trainer = dict(
-    max_epochs=3,
+    max_epochs=10,
     precision=16,
-    accelerator="cpu",
+    accelerator="gpu",
     strategy=None,
     devices="auto",
 )
 data = dict(
-    batch_size_train=2,
-    batch_size_eval=2,
-    num_workers=0,
+    batch_size_train=32,
+    batch_size_eval=32,
+    num_workers=8,
+    derivative_idx=True,
 )
 evaluation = dict(
     precision=16,
@@ -21,4 +22,4 @@ evaluation = dict(
     strategy=None,
     devices="auto",
 )
-##
+reprojected = True

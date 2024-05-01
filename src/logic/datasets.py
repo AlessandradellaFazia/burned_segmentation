@@ -211,8 +211,29 @@ class EMSImageDataset(Dataset):
             NDVI = normalized_difference(
                 image[:, :, bands["B08"]], image[:, :, bands["B04"]]
             )[..., np.newaxis]
+            MNDWI = normalized_difference(
+                image[:, :, bands["B03"]], image[:, :, bands["B11"]]
+            )[..., np.newaxis]
+
+            B06 = bands["B06"]
+            B07 = bands["B07"]
+            B08 = bands["B08"]
+            B8A = bands["B8A"]
+            B04 = bands["B04"]
+            B12 = bands["B12"]
+            BAIS2 = (1 - ((B06 * B07 * B8A) / B04) ** 0.5) * (
+                (B12 - B8A) / ((B12 + B8A) ** 0.5) + 1
+            )
+            MIRBI = 10 * bands["B12"] - 9.8 * bands["B11"] + 2
+            MSAVI = (2 * B08 + 1 - ((2 * B08 + 1) ** 2 - 8 * (B08 - B04)) ** 0.5) / 2
+
             image = np.concatenate([image, NBR2], axis=-1)
             image = np.concatenate([image, NDVI], axis=-1)
+            image = np.concatenate([image, BAIS2], axis=-1)
+            image = np.concatenate([image, MNDWI], axis=-1)
+            image = np.concatenate([image, MIRBI], axis=-1)
+            image = np.concatenate([image, MSAVI], axis=-1)
+
             sample["image"] = image
         return sample
 

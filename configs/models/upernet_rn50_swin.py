@@ -41,3 +41,4 @@ model = dict(
     train_cfg=dict(),
     test_cfg=dict(mode="whole"),
 )
+layer_to_reproject = "backbone.patch_embed.proj.weight"

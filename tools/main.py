@@ -43,7 +43,14 @@ def train(cfg_path: Path):
     if os.name == "nt":
         config.trainer.accelerator = "cpu"
         config.evaluation.accelerator = "cpu"
+        config.data.root = "data\\little"
 
+    reprojected = config["reprojected"] if "reprojected" in config else None
+    layer_to_reproject = (
+        config["layer_to_reproject"] if "layer_to_reproject" in config else None
+    )
+    assert reprojected and layer_to_reproject
+    config["data"]["derivative_idx"] = reprojected
     # datamodule
     log.info("Preparing the data module...")
     datamodule = EMSDataModule(**config["data"])
@@ -57,9 +64,14 @@ def train(cfg_path: Path):
         if "aux_classes" in model_config["decode_head"]
         else SingleTaskModule
     )
-    reprojected = config["reprojected"] if "reprojected" in config else None
 
-    module = module_class(model_config, loss=loss, reprojected=reprojected)
+    print(config)
+    module = module_class(
+        model_config,
+        loss=loss,
+        reprojected=reprojected,
+        layer_to_reproject=layer_to_reproject,
+    )
     module.init_pretrained()
 
     log.info("Preparing the trainer...")
@@ -266,8 +278,12 @@ if __name__ == "__main__":
     seed_everything(95, workers=True)
 
     if os.name == "nt":
-        test_str = "test_full -e outputs\\upernet-rn50_single_ssl4eo_50ep_20240313_153424\\version_0 -ts 128 -tt smooth -sub 8"
-        args = cli.parse_args(test_str.split())
+        # test_str = "test_full -e outputs\\upernet-rn50_single_ssl4eo_50ep_20240313_153424\\version_0 -ts 128 -tt smooth -sub 8"
+        # args = cli.parse_args(test_str.split())
+        train_swin = (
+            "train -c configs\\single\\pretrained\\ems_upernet-rn50_single_10ep_16ch.py"
+        )
+        args = cli.parse_args(train_swin.split())
         print(args)
     else:
         args = cli.parse_args()

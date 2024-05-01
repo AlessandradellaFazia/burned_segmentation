@@ -6,7 +6,7 @@ name = "upernet-swing_10ep"
 trainer = dict(
     max_epochs=2,
     precision=16,
-    accelerator="cpu",
+    accelerator="gpu",
     strategy=None,
     devices=1,
 )
@@ -17,7 +17,7 @@ data = dict(
 )
 evaluation = dict(
     precision=16,
-    accelerator="cpu",
+    accelerator="gpu",
     strategy=None,
     devices=1,
 )
