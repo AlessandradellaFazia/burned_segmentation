@@ -203,36 +203,33 @@ class EMSImageDataset(Dataset):
 
         if self.derivative_idx:
             bands = self.all_bands
-            # add NBR and NDVI
-            image = sample["image"]
-            NBR2 = normalized_difference(
-                image[:, :, bands["B11"]], image[:, :, bands["B12"]]
-            )[..., np.newaxis]
-            NDVI = normalized_difference(
-                image[:, :, bands["B08"]], image[:, :, bands["B04"]]
-            )[..., np.newaxis]
-            MNDWI = normalized_difference(
-                image[:, :, bands["B03"]], image[:, :, bands["B11"]]
-            )[..., np.newaxis]
+            image = sample["image"]  # h,w,c
+            B03 = image[:, :, bands["B03"]] + 0.001
+            B04 = image[:, :, bands["B04"]] + 0.001
+            B06 = image[:, :, bands["B06"]] + 0.001
+            B07 = image[:, :, bands["B07"]] + 0.001
+            B08 = image[:, :, bands["B08"]] + 0.001
+            B8A = image[:, :, bands["B8A"]] + 0.001
+            B11 = image[:, :, bands["B11"]] + 0.001
+            B12 = image[:, :, bands["B12"]] + 0.001
 
-            B06 = bands["B06"]
-            B07 = bands["B07"]
-            B08 = bands["B08"]
-            B8A = bands["B8A"]
-            B04 = bands["B04"]
-            B12 = bands["B12"]
-            BAIS2 = (1 - ((B06 * B07 * B8A) / B04) ** 0.5) * (
-                (B12 - B8A) / ((B12 + B8A) ** 0.5) + 1
+            NBR2 = normalized_difference(B11, B12)[..., np.newaxis]
+            NDVI = normalized_difference(B08, B04)[..., np.newaxis]
+            MNDWI = normalized_difference(B03, B11)[..., np.newaxis]
+            BAIS2 = (
+                (1 - ((B06 * B07 * B8A) / B04) ** 0.5)
+                * ((B12 - B8A) / ((B12 + B8A) ** 0.5) + 1)
+            )[..., np.newaxis]
+            MIRBI = (10 * B12 - 9.8 * B11 + 2)[..., np.newaxis]
+            MSAVI = ((2 * B08 + 1 - ((2 * B08 + 1) ** 2 - 8 * (B08 - B04)) ** 0.5) / 2)[
+                ..., np.newaxis
+            ]
+
+            new_features = np.concatenate(
+                (NBR2, NDVI, MNDWI, BAIS2, MIRBI, MSAVI), axis=-1
             )
-            MIRBI = 10 * bands["B12"] - 9.8 * bands["B11"] + 2
-            MSAVI = (2 * B08 + 1 - ((2 * B08 + 1) ** 2 - 8 * (B08 - B04)) ** 0.5) / 2
-
-            image = np.concatenate([image, NBR2], axis=-1)
-            image = np.concatenate([image, NDVI], axis=-1)
-            image = np.concatenate([image, BAIS2], axis=-1)
-            image = np.concatenate([image, MNDWI], axis=-1)
-            image = np.concatenate([image, MIRBI], axis=-1)
-            image = np.concatenate([image, MSAVI], axis=-1)
+            new_features = min_max_scaler(new_features)
+            image = np.concatenate((image, new_features), axis=-1)
 
             sample["image"] = image
         return sample
@@ -282,3 +279,11 @@ class EMSCropDataset(EMSImageDataset):
 
 def normalized_difference(a, b):
     return (a - b) / ((a + b) + 0.001)
+
+
+def min_max_scaler(a):
+    """Expects numpy vector in h,w,c format"""
+    print("min max scaling...")
+    return (a - np.min(a, axis=(0, 1))) / (
+        np.max(a, axis=(0, 1)) - np.min(a, axis=(0, 1))
+    )
