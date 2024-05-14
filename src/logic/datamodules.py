@@ -9,6 +9,78 @@ from logic.datasets import EMSCropDataset, EMSImageDataset
 from logic.samplers.samplers import SequentialTiledSampler, RandomTiledSampler
 
 # from torchgeo.samplers import RandomBatchGeoSampler, GridGeoSampler da installare
+MEAN = {}
+STD = {}
+MEAN[18] = [
+    0.0281,
+    0.0365,
+    0.0513,
+    0.0610,
+    0.0820,
+    0.1171,
+    0.1320,
+    0.1377,
+    0.1456,
+    0.1466,
+    0.1501,
+    0.1117,
+    0.4038,
+    0.3807,
+    0.5150,
+    0.7643,
+    0.5890,
+    0.2240,
+]
+MEAN[12] = [
+    0.0281,
+    0.0365,
+    0.0513,
+    0.0610,
+    0.0820,
+    0.1171,
+    0.1320,
+    0.1377,
+    0.1456,
+    0.1466,
+    0.1501,
+    0.1117,
+]
+MEAN[6] = [0.4038, 0.3807, 0.5150, 0.7643, 0.5890, 0.2240]
+STD[18] = [
+    0.0316,
+    0.0399,
+    0.0515,
+    0.0665,
+    0.0784,
+    0.1056,
+    0.1199,
+    0.1253,
+    0.1312,
+    0.1307,
+    0.1323,
+    0.1025,
+    0.2654,
+    0.2789,
+    0.2913,
+    0.1975,
+    0.2610,
+    0.1942,
+]
+STD[12] = [
+    0.0316,
+    0.0399,
+    0.0515,
+    0.0665,
+    0.0784,
+    0.1056,
+    0.1199,
+    0.1253,
+    0.1312,
+    0.1307,
+    0.1323,
+    0.1025,
+]
+STD[6] = [0.2654, 0.2789, 0.2913, 0.1975, 0.2610, 0.1942]
 
 
 class EMSDataModule(LightningDataModule):
@@ -49,12 +121,24 @@ class EMSDataModule(LightningDataModule):
                 A.RandomBrightnessContrast(
                     p=0.5, brightness_limit=0.02, contrast_limit=0.02
                 ),
-                ToTensorV2(),
+                A.Normalize(
+                    mean=MEAN[self.in_channels],
+                    std=STD[self.in_channels],
+                    max_pixel_value=1,
+                ),
+                ToTensorV2(),  # from HWC to CHW
             ],
             additional_targets=self.transform_targets,
         )
         self.eval_transform = A.Compose(
-            [ToTensorV2()],
+            [
+                A.Normalize(
+                    mean=MEAN[self.in_channels],
+                    std=STD[self.in_channels],
+                    max_pixel_value=1,
+                ),
+                ToTensorV2(),
+            ],
             additional_targets=self.transform_targets,
         )
 
