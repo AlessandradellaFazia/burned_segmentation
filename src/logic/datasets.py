@@ -101,7 +101,7 @@ class EMSImageDataset(Dataset):
         modalities: list[str] = ["S2L2A", "DEL", "ESA_LC", "CM"],
         transform: Callable = None,
         check_integrity: bool = False,
-        derivative_idx: bool = False,
+        in_channels: int = 12,
     ):
         self.root = Path(root)
         modalities = set(modalities)
@@ -119,7 +119,7 @@ class EMSImageDataset(Dataset):
         assert "S2L2A" in modalities, "At least S2L2A must be present in the modalities"
         self.modalities = modalities
         self.transform = transform
-        self.derivative_idx = derivative_idx
+        self.in_channels = in_channels
         self.files = {}
         # gather all the files
         for modality in self.modalities:
@@ -201,37 +201,69 @@ class EMSImageDataset(Dataset):
                 sample["ESA_LC"][cm == 1] = 255
         sample["mask"] = mask
 
-        if self.derivative_idx:
-            bands = self.all_bands
-            image = sample["image"]  # h,w,c
-            B03 = image[:, :, bands["B03"]] + 0.001
-            B04 = image[:, :, bands["B04"]] + 0.001
-            B06 = image[:, :, bands["B06"]] + 0.001
-            B07 = image[:, :, bands["B07"]] + 0.001
-            B08 = image[:, :, bands["B08"]] + 0.001
-            B8A = image[:, :, bands["B8A"]] + 0.001
-            B11 = image[:, :, bands["B11"]] + 0.001
-            B12 = image[:, :, bands["B12"]] + 0.001
+        match self.in_channels:
+            case 12:
+                sample["image"] = image
+            case 6:
+                bands = self.all_bands
+                image = sample["image"]  # h,w,c
+                B03 = image[:, :, bands["B03"]] + 0.001
+                B04 = image[:, :, bands["B04"]] + 0.001
+                B06 = image[:, :, bands["B06"]] + 0.001
+                B07 = image[:, :, bands["B07"]] + 0.001
+                B08 = image[:, :, bands["B08"]] + 0.001
+                B8A = image[:, :, bands["B8A"]] + 0.001
+                B11 = image[:, :, bands["B11"]] + 0.001
+                B12 = image[:, :, bands["B12"]] + 0.001
 
-            NBR2 = normalized_difference(B11, B12)[..., np.newaxis]
-            NDVI = normalized_difference(B08, B04)[..., np.newaxis]
-            MNDWI = normalized_difference(B03, B11)[..., np.newaxis]
-            BAIS2 = (
-                (1 - ((B06 * B07 * B8A) / B04) ** 0.5)
-                * ((B12 - B8A) / ((B12 + B8A) ** 0.5) + 1)
-            )[..., np.newaxis]
-            MIRBI = (10 * B12 - 9.8 * B11 + 2)[..., np.newaxis]
-            MSAVI = ((2 * B08 + 1 - ((2 * B08 + 1) ** 2 - 8 * (B08 - B04)) ** 0.5) / 2)[
-                ..., np.newaxis
-            ]
+                NBR2 = normalized_difference(B11, B12)[..., np.newaxis]  # (w,h,1)
+                NDVI = normalized_difference(B08, B04)[..., np.newaxis]  # (w,h,1)
+                MNDWI = normalized_difference(B03, B11)[..., np.newaxis]
+                BAIS2 = (
+                    (1 - ((B06 * B07 * B8A) / B04) ** 0.5)
+                    * ((B12 - B8A) / ((B12 + B8A) ** 0.5) + 1)
+                )[..., np.newaxis]
+                MIRBI = (10 * B12 - 9.8 * B11 + 2)[..., np.newaxis]
+                MSAVI = (
+                    (2 * B08 + 1 - ((2 * B08 + 1) ** 2 - 8 * (B08 - B04)) ** 0.5) / 2
+                )[..., np.newaxis]
 
-            new_features = np.concatenate(
-                (NBR2, NDVI, MNDWI, BAIS2, MIRBI, MSAVI), axis=-1
-            )
-            new_features = min_max_scaler(new_features)
-            image = np.concatenate((image, new_features), axis=-1)
+                new_features = np.concatenate(
+                    (NBR2, NDVI, MNDWI, BAIS2, MIRBI, MSAVI), axis=-1
+                )  # (w,h,6)
+                image = min_max_scaler(new_features)
+                sample["image"] = image
+            case 18:
+                bands = self.all_bands
+                image = sample["image"]  # h,w,c
+                B03 = image[:, :, bands["B03"]] + 0.001
+                B04 = image[:, :, bands["B04"]] + 0.001
+                B06 = image[:, :, bands["B06"]] + 0.001
+                B07 = image[:, :, bands["B07"]] + 0.001
+                B08 = image[:, :, bands["B08"]] + 0.001
+                B8A = image[:, :, bands["B8A"]] + 0.001
+                B11 = image[:, :, bands["B11"]] + 0.001
+                B12 = image[:, :, bands["B12"]] + 0.001
 
-            sample["image"] = image
+                NBR2 = normalized_difference(B11, B12)[..., np.newaxis]  # (w,h,1)
+                NDVI = normalized_difference(B08, B04)[..., np.newaxis]  # (w,h,1)
+                MNDWI = normalized_difference(B03, B11)[..., np.newaxis]
+                BAIS2 = (
+                    (1 - ((B06 * B07 * B8A) / B04) ** 0.5)
+                    * ((B12 - B8A) / ((B12 + B8A) ** 0.5) + 1)
+                )[..., np.newaxis]
+                MIRBI = (10 * B12 - 9.8 * B11 + 2)[..., np.newaxis]
+                MSAVI = (
+                    (2 * B08 + 1 - ((2 * B08 + 1) ** 2 - 8 * (B08 - B04)) ** 0.5) / 2
+                )[..., np.newaxis]
+
+                new_features = np.concatenate(
+                    (NBR2, NDVI, MNDWI, BAIS2, MIRBI, MSAVI), axis=-1
+                )  # (w,h,6)
+                new_features = min_max_scaler(new_features)
+                image = np.concatenate((image, new_features), axis=-1)  # (w,h,12+6)
+                sample["image"] = image
+
         return sample
 
     def _postprocess(self, sample: dict) -> dict:
@@ -283,7 +315,6 @@ def normalized_difference(a, b):
 
 def min_max_scaler(a):
     """Expects numpy vector in h,w,c format"""
-    print("min max scaling...")
     return (a - np.min(a, axis=(0, 1))) / (
         np.max(a, axis=(0, 1)) - np.min(a, axis=(0, 1))
     )

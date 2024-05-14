@@ -45,12 +45,14 @@ def train(cfg_path: Path):
         config.evaluation.accelerator = "cpu"
         config.data.root = "data\\little"
 
+    in_channels = config["model"]["backbone"]["in_channels"]
+    config["data"]["in_channels"] = in_channels
+
     reprojected = config["reprojected"] if "reprojected" in config else None
     layer_to_reproject = (
         config["layer_to_reproject"] if "layer_to_reproject" in config else None
     )
     assert reprojected and layer_to_reproject
-    config["data"]["derivative_idx"] = reprojected
     # datamodule
     log.info("Preparing the data module...")
     datamodule = EMSDataModule(**config["data"])
@@ -115,6 +117,8 @@ def test(exp_path: Path, checkpoint: Path, predict: bool):
         config.evaluation.accelerator = "cpu"
     # datamodule
     log.info("Preparing the data module...")
+    in_channels = config["model"]["backbone"]["in_channels"]
+    config["data"]["in_channels"] = in_channels
     datamodule = EMSDataModule(**config["data"])
 
     # prepare the model
@@ -203,6 +207,8 @@ def test_full(
 
     # datamodule
     log.info("Preparing the data module...")
+    in_channels = config["model"]["backbone"]["in_channels"]
+    config["data"]["in_channels"] = in_channels
     config["data"]["full_test_type"] = True
     datamodule = EMSDataModule(**config["data"])
 
@@ -280,9 +286,7 @@ if __name__ == "__main__":
     if os.name == "nt":
         # test_str = "test_full -e outputs\\upernet-rn50_single_ssl4eo_50ep_20240313_153424\\version_0 -ts 128 -tt smooth -sub 8"
         # args = cli.parse_args(test_str.split())
-        train_swin = (
-            "train -c configs\\single\\pretrained\\ems_upernet-rn50_single_10ep_16ch.py"
-        )
+        train_swin = "train -c configs\\single\\pretrained\\dice\\ems_upernet-rn50_single_10ep_6ch.py"
         args = cli.parse_args(train_swin.split())
         print(args)
     else:

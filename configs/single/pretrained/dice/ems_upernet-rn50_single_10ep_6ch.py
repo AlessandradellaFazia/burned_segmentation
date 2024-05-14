@@ -1,6 +1,6 @@
 _base_ = [
-    "../../models/upernet_rn50_16ch.py",
-    "../../datasets/ems.py",
+    "../../../models/upernet_rn50_6ch.py",
+    "../../../datasets/ems.py",
 ]
 name = "upernet-rn50_single_ssl4eo_50ep"
 trainer = dict(
@@ -22,4 +22,5 @@ evaluation = dict(
     devices="auto",
 )
 reprojected = True
+loss = "dice"
 ##configs\single\pretrained\ems_upernet-rn50_single_50ep.py

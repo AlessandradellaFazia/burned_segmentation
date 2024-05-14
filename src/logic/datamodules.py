@@ -28,7 +28,7 @@ class EMSDataModule(LightningDataModule):
         batch_size_train: int = 8,
         batch_size_eval: int = 16,
         num_workers: int = 2,
-        derivative_idx=False,
+        in_channels=12,
         full_test_type: bool = False,
     ) -> None:
         super().__init__()
@@ -38,7 +38,7 @@ class EMSDataModule(LightningDataModule):
         self.batch_size_train = batch_size_train
         self.batch_size_eval = batch_size_eval
         self.num_workers = num_workers
-        self.derivative_idx = derivative_idx
+        self.in_channels = in_channels
         self.full_test_type = full_test_type
         self.train_transform = A.Compose(
             [
@@ -65,14 +65,14 @@ class EMSDataModule(LightningDataModule):
                 subset="train",
                 modalities=self.modalities,
                 transform=self.train_transform,
-                derivative_idx=self.derivative_idx,
+                in_channels=self.in_channels,
             )
             self.val_set = EMSCropDataset(
                 root=self.root,
                 subset="val",
                 modalities=self.modalities,
                 transform=self.eval_transform,
-                derivative_idx=self.derivative_idx,
+                in_channels=self.in_channels,
             )
         elif stage == "test":
             if self.full_test_type:
@@ -81,7 +81,7 @@ class EMSDataModule(LightningDataModule):
                     subset="test",
                     modalities=self.modalities,
                     transform=self.eval_transform,
-                    derivative_idx=self.derivative_idx,
+                    in_channels=self.in_channels,
                 )
             else:
                 self.test_set = EMSCropDataset(
@@ -89,7 +89,7 @@ class EMSDataModule(LightningDataModule):
                     subset="test",
                     modalities=self.modalities,
                     transform=self.eval_transform,
-                    derivative_idx=self.derivative_idx,
+                    in_channels=self.in_channels,
                 )
         elif stage == "predict":
             self.pred_set = EMSImageDataset(
@@ -97,7 +97,7 @@ class EMSDataModule(LightningDataModule):
                 subset="test",
                 modalities=self.modalities,
                 transform=self.eval_transform,
-                derivative_idx=self.derivative_idx,
+                in_channels=self.in_channels,
             )
 
     def train_dataloader(self):
