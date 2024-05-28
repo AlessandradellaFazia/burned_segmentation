@@ -22,15 +22,11 @@ class CustomEncoderDecoder(EncoderDecoder):
         x = self.extract_feat(inputs)
         feat = self.decode_head(x)
         out = self.decode_head.cls_seg(feat)
-        out = F.interpolate(
-            out, size=inputs.shape[2:], mode="bilinear", align_corners=True
-        )
+        out = F.interpolate(out, size=inputs.shape[2:], mode="bilinear", align_corners=True)
 
         if self.decode_head.has_aux_output():
             aux = self.decode_head.cls_seg_aux(feat)
-            aux = F.interpolate(
-                aux, size=inputs.shape[2:], mode="bilinear", align_corners=True
-            )
+            aux = F.interpolate(aux, size=inputs.shape[2:], mode="bilinear", align_corners=True)
             return out, aux
 
         return out

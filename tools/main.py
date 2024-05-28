@@ -49,10 +49,7 @@ def train(cfg_path: Path):
     config["data"]["in_channels"] = in_channels
 
     reprojected = config["reprojected"] if "reprojected" in config else None
-    layer_to_reproject = (
-        config["layer_to_reproject"] if "layer_to_reproject" in config else None
-    )
-    assert reprojected and layer_to_reproject
+    layer_to_reproject = config["layer_to_reproject"] if "layer_to_reproject" in config else None
     # datamodule
     log.info("Preparing the data module...")
     datamodule = EMSDataModule(**config["data"])
@@ -61,11 +58,7 @@ def train(cfg_path: Path):
     log.info("Preparing the model...")
     model_config = config["model"]
     loss = config["loss"] if "loss" in config else "bce"
-    module_class = (
-        MultiModule
-        if "aux_classes" in model_config["decode_head"]
-        else SingleTaskModule
-    )
+    module_class = MultiModule if "aux_classes" in model_config["decode_head"] else SingleTaskModule
 
     print(config)
     module = module_class(
@@ -92,9 +85,7 @@ def train(cfg_path: Path):
             every_n_epochs=10,
         )
     ]
-    trainer = Trainer(
-        **config["trainer"], callbacks=callbacks, logger=logger, num_sanity_val_steps=0
-    )
+    trainer = Trainer(**config["trainer"], callbacks=callbacks, logger=logger, num_sanity_val_steps=0)
 
     log.info("Starting the training...")
     trainer.fit(module, datamodule=datamodule)
@@ -144,28 +135,20 @@ def test(exp_path: Path, checkpoint: Path, predict: bool):
     # prepare the model
     log.info("Preparing the model...")
     model_config = config["model"]
-    module_class = (
-        MultiModule
-        if "aux_classes" in model_config["decode_head"]
-        else SingleTaskModule
-    )
+    module_class = MultiModule if "aux_classes" in model_config["decode_head"] else SingleTaskModule
     log.info(f"versione stringa:{type(str(checkpoint))}")
 
     if os.name == "nt":
         backup = pathlib.PosixPath
         try:
             pathlib.PosixPath = pathlib.WindowsPath
-            module = module_class.load_from_checkpoint(
-                str(checkpoint), "cpu", **module_opts
-            )
+            module = module_class.load_from_checkpoint(str(checkpoint), "cpu", **module_opts)
         finally:
             pathlib.PosixPath = backup
     else:
         module = module_class.load_from_checkpoint(str(checkpoint), **module_opts)
 
-    logger = TensorBoardLogger(
-        save_dir="outputs", name=config["name"], version=exp_path.stem
-    )
+    logger = TensorBoardLogger(save_dir="outputs", name=config["name"], version=exp_path.stem)
     if predict:
         log.info("Generating predictions...")
         trainer = Trainer(**config["evaluation"], logger=False)
@@ -219,9 +202,7 @@ def test_full(
     module_opts = dict(config=config["model"])
     loss = config["loss"] if "loss" in config else "bce"
     module_opts.update(loss=loss)
-    log.info(
-        f"Tile size: {tile_size}, subdivisions: {subdivisions}, tiler type: {tiler_type}"
-    )
+    log.info(f"Tile size: {tile_size}, subdivisions: {subdivisions}, tiler type: {tiler_type}")
     TilerClass = SmoothTiler if tiler_type == "smooth" else SimpleTiler
     tiler = TilerClass(
         tile_size=tile_size,
@@ -236,27 +217,19 @@ def test_full(
     # prepare the model
     log.info("Preparing the model...")
     model_config = config["model"]
-    module_class = (
-        MultiModule
-        if "aux_classes" in model_config["decode_head"]
-        else SingleTaskModule
-    )
+    module_class = MultiModule if "aux_classes" in model_config["decode_head"] else SingleTaskModule
 
     if os.name == "nt":
         backup = pathlib.PosixPath
         try:
             pathlib.PosixPath = pathlib.WindowsPath
-            module = module_class.load_from_checkpoint(
-                str(checkpoint), "cpu", **module_opts
-            )
+            module = module_class.load_from_checkpoint(str(checkpoint), "cpu", **module_opts)
         finally:
             pathlib.PosixPath = backup
     else:
         module = module_class.load_from_checkpoint(str(checkpoint), **module_opts)
 
-    logger = TensorBoardLogger(
-        save_dir="outputs", name=config["name"], version=exp_path.stem
-    )
+    logger = TensorBoardLogger(save_dir="outputs", name=config["name"], version=exp_path.stem)
 
     log.info("Starting the testing...")
     trainer = Trainer(**config["evaluation"], logger=logger)
@@ -284,9 +257,11 @@ if __name__ == "__main__":
     seed_everything(95, workers=True)
 
     if os.name == "nt":
-        # test_str = "test_full -e outputs\\upernet-rn50_single_ssl4eo_50ep_20240313_153424\\version_0 -ts 128 -tt smooth -sub 8"
+        test_str = (
+            "test_full -e outputs\\upernet-rn50_single_ssl4eo_50ep_20240313_153424\\version_0 -ts 128 -tt smooth -sub 8"
+        )
         # args = cli.parse_args(test_str.split())
-        train_swin = "train -c configs\\single\\pretrained\\dice\\ems_upernet-rn50_single_10ep_6ch.py"
+        train_swin = "train -c configs\\single\\pretrained\\dice\\ems_upernet-rn50_single_50ep.py"
         args = cli.parse_args(train_swin.split())
         print(args)
     else:

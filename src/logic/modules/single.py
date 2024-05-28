@@ -17,17 +17,11 @@ class SingleTaskModule(BaseModule):
         layer_to_reproject: str = None,
         test_type: str = "standard",
     ):
-        super().__init__(
-            config, tiler, predict_callback, reprojected, layer_to_reproject
-        )
+        super().__init__(config, tiler, predict_callback, reprojected, layer_to_reproject)
         if loss == "bce":
-            self.criterion_decode = SoftBCEWithLogitsLoss(
-                ignore_index=255, pos_weight=torch.tensor(3.0)
-            )
+            self.criterion_decode = SoftBCEWithLogitsLoss(ignore_index=255, pos_weight=torch.tensor(3.0))
         else:
-            self.criterion_decode = DiceLoss(
-                mode="binary", from_logits=True, ignore_index=255
-            )
+            self.criterion_decode = DiceLoss(mode="binary", from_logits=True, ignore_index=255)
         if test_type == "standard":
             self.test_step = self.standard_test_step
         else:
@@ -106,9 +100,20 @@ class SingleTaskModule(BaseModule):
             del_out = self.model(batch)  # [b, 1, h, w]
             return del_out.squeeze(1)  # [b, h, w]
 
-        full_pred = self.tiler(
-            full_image[0], callback=callback
-        )  # full_image[0] 12, 1442, 1977
+        full_pred = self.tiler(full_image[0], callback=callback)  # full_image[0] 12, 1442, 1977
+        batch["pred"] = torch.sigmoid(full_pred)
+        return batch  # # matrice composta solo di 0 e 1
+
+    def predict_step_full_image(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
+        print("full image predict step")
+
+        full_image = batch["S2L2A"]  # [1, 12, h, w]
+
+        def callback(batch: Any):
+            del_out = self.model(batch)  # [b, 1, h, w]
+            return del_out.squeeze(1)  # [b, h, w]
+
+        full_pred = callback(full_image)  # full_image[0] 12, 1442, 1977
         batch["pred"] = torch.sigmoid(full_pred)
         return batch  # # matrice composta solo di 0 e 1
 
@@ -137,7 +142,5 @@ class SingleTaskModule(BaseModule):
         probs = torch.cat(lista, dim=0)
         return probs
 
-    def on_predict_batch_end(
-        self, outputs: Any | None, batch: Any, batch_idx: int, dataloader_idx: int
-    ) -> None:
+    def on_predict_batch_end(self, outputs: Any | None, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
         self.predict_callback(batch)

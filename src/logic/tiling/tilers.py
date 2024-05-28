@@ -11,6 +11,10 @@ import scipy.signal
 import torch
 from torch.nn import functional as func
 
+from scipy.signal.windows import triang
+
+# from scipy.signal import triang
+
 WINDOW_CACHE = dict()
 
 """
@@ -33,10 +37,10 @@ def _spline_window(window_size: int, power: int = 2) -> np.ndarray:
         np.ndarray: 1D spline
     """
     intersection = int(window_size / 4)
-    wind_outer = (abs(2 * (scipy.signal.triang(window_size))) ** power) / 2
+    wind_outer = (abs(2 * (triang(window_size))) ** power) / 2
     wind_outer[intersection:-intersection] = 0
 
-    wind_inner = 1 - (abs(2 * (scipy.signal.triang(window_size) - 1)) ** power) / 2
+    wind_inner = 1 - (abs(2 * (triang(window_size) - 1)) ** power) / 2
     wind_inner[:intersection] = 0
     wind_inner[-intersection:] = 0
 
@@ -64,9 +68,7 @@ def _spline_2d(window_size: int, power: int = 2) -> torch.Tensor:
         wind = WINDOW_CACHE[key]
     else:
         wind = _spline_window(window_size, power)  # 512,
-        wind = np.expand_dims(
-            np.expand_dims(wind, 1), 1
-        )  # 512,1,1 SREENI: Changed from 3, 3, to 1, 1
+        wind = np.expand_dims(np.expand_dims(wind, 1), 1)  # 512,1,1 SREENI: Changed from 3, 3, to 1, 1
         wind = torch.from_numpy(wind * wind.transpose(1, 0, 2))  # 512, 512, 1
         WINDOW_CACHE[key] = wind
     return wind
@@ -85,9 +87,7 @@ def pad_image(image: torch.Tensor, tile_size: int, subdivisions: int) -> torch.T
         torch.Tensor: same image, padded specularly by a certain amount in every direction
     """
     # compute the pad as (window - window/subdivisions)
-    pad = int(
-        round(tile_size * (1 - 1.0 / subdivisions))
-    )  # pad = 256, tile_size = 512, subdivision = 2
+    pad = int(round(tile_size * (1 - 1.0 / subdivisions)))  # pad = 256, tile_size = 512, subdivision = 2
     # add pad pixels in height and width, nothing channel-wise
     # since torch.pad works on tensors, it requires a 4D array with shape [batch, channels, width, height]
     # padding is then defined as amount for each dimension and for each of the x/y axis
@@ -98,9 +98,7 @@ def pad_image(image: torch.Tensor, tile_size: int, subdivisions: int) -> torch.T
     return batch.squeeze(0).permute(1, 2, 0)
 
 
-def unpad_image(
-    padded_image: torch.Tensor, tile_size: int, subdivisions: int
-) -> torch.Tensor:
+def unpad_image(padded_image: torch.Tensor, tile_size: int, subdivisions: int) -> torch.Tensor:
     """Reverts changes made by 'pad_image'. The same padding is removed, so tile_size and subdivisions
     must be coherent.
 
@@ -116,9 +114,7 @@ def unpad_image(
     pad = int(round(tile_size * (1 - 1.0 / subdivisions)))
     # crop the image left, right, top and bottom
 
-    result = padded_image[
-        pad : padded_image.shape[0] - pad, pad : padded_image.shape[1] - pad
-    ]
+    result = padded_image[pad : padded_image.shape[0] - pad, pad : padded_image.shape[1] - pad]
     return result
 
 
@@ -209,9 +205,7 @@ def windowed_generator(
         yield coords, torch.stack(batch)
 
 
-def reconstruct(
-    canvas: torch.Tensor, tile_size: int, coords: List[tuple], predictions: torch.Tensor
-) -> torch.Tensor:
+def reconstruct(canvas: torch.Tensor, tile_size: int, coords: List[tuple], predictions: torch.Tensor) -> torch.Tensor:
     """Helper function that iterates the result batch onto the given canvas to reconstruct
     the final result batch after batch.
 
@@ -256,14 +250,10 @@ def predict_smooth_windowing(
     if channels_first:
         image = image.permute(1, 2, 0)  # from 12,w,h to w,h,12
     width, height, _ = image.shape
-    padded = pad_image(
-        image=image, tile_size=tile_size, subdivisions=subdivisions
-    )  # 1954, 2489, 12
+    padded = pad_image(image=image, tile_size=tile_size, subdivisions=subdivisions)  # 1954, 2489, 12
     padded_width, padded_height, _ = padded.shape
     padded_variants = rotate_and_mirror(padded) if mirrored else [padded]
-    spline = (
-        _spline_2d(window_size=tile_size, power=2).to(image.device).squeeze(-1)
-    )  # [512,512]
+    spline = _spline_2d(window_size=tile_size, power=2).to(image.device).squeeze(-1)  # [512,512]
 
     results = []
     for img in padded_variants:
@@ -278,16 +268,12 @@ def predict_smooth_windowing(
             # batch is 32,12,512,512
             pred_batch = prediction_fn(batch)  # .permute(0, 2, 3, 1)
             pred_batch = [tile * spline for tile in pred_batch]
-            canvas = reconstruct(
-                canvas, tile_size=tile_size, coords=coords, predictions=pred_batch
-            )
+            canvas = reconstruct(canvas, tile_size=tile_size, coords=coords, predictions=pred_batch)
         canvas /= subdivisions**2
         results.append(canvas)
 
     padded_result = undo_rotate_and_mirror(results) if mirrored else results[0]
-    prediction = unpad_image(
-        padded_result, tile_size=tile_size, subdivisions=subdivisions
-    )
+    prediction = unpad_image(padded_result, tile_size=tile_size, subdivisions=subdivisions)
     return prediction[:width, :height]
 
 
@@ -318,9 +304,7 @@ def predict_windowing(
     if channels_first:
         image = image.permute(1, 2, 0)
     width, height, _ = image.shape
-    padded = pad_image(
-        image=image, tile_size=tile_size, subdivisions=subdivisions
-    )  # 1954, 2489, 12
+    padded = pad_image(image=image, tile_size=tile_size, subdivisions=subdivisions)  # 1954, 2489, 12
     padded_width, padded_height, _ = padded.shape
     padded_variants = rotate_and_mirror(padded) if mirrored else [padded]
 
@@ -336,16 +320,12 @@ def predict_windowing(
             # returns batch of channels-first, return to channels-last
             # batch is 32,12,512,512
             pred_batch = prediction_fn(batch)  # .permute(0, 2, 3, 1)
-            canvas = reconstruct(
-                canvas, tile_size=tile_size, coords=coords, predictions=pred_batch
-            )
+            canvas = reconstruct(canvas, tile_size=tile_size, coords=coords, predictions=pred_batch)
         canvas /= subdivisions**2
         results.append(canvas)
 
     padded_result = undo_rotate_and_mirror(results) if mirrored else results[0]
-    prediction = unpad_image(
-        padded_result, tile_size=tile_size, subdivisions=subdivisions
-    )
+    prediction = unpad_image(padded_result, tile_size=tile_size, subdivisions=subdivisions)
     return prediction[:width, :height]
 
 

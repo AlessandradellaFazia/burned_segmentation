@@ -118,27 +118,13 @@ class EMSDataModule(LightningDataModule):
                 A.VerticalFlip(p=0.5),
                 A.RandomRotate90(p=0.5),
                 A.ShiftScaleRotate(rotate_limit=360, value=0, mask_value=255, p=0.5),
-                A.RandomBrightnessContrast(
-                    p=0.5, brightness_limit=0.02, contrast_limit=0.02
-                ),
-                A.Normalize(
-                    mean=MEAN[self.in_channels],
-                    std=STD[self.in_channels],
-                    max_pixel_value=1,
-                ),
+                A.RandomBrightnessContrast(p=0.5, brightness_limit=0.02, contrast_limit=0.02),
                 ToTensorV2(),  # from HWC to CHW
             ],
             additional_targets=self.transform_targets,
         )
         self.eval_transform = A.Compose(
-            [
-                A.Normalize(
-                    mean=MEAN[self.in_channels],
-                    std=STD[self.in_channels],
-                    max_pixel_value=1,
-                ),
-                ToTensorV2(),
-            ],
+            [ToTensorV2()],
             additional_targets=self.transform_targets,
         )
 
@@ -246,3 +232,11 @@ class EMSDataModule(LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=True,
         )
+
+
+"""
+A.Normalize(
+mean=MEAN[self.in_channels],
+std=STD[self.in_channels],
+max_pixel_value=1)
+"""

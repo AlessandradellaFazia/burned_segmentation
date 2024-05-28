@@ -111,10 +111,7 @@ class EMSImageDataset(Dataset):
             "val",
             "test",
         ], f"subset must be one of train, val, test, got {subset}"
-        assert all(
-            modality in ["S2L2A", "DEL", "GRA", "ESA_LC", "CM"]
-            for modality in modalities
-        )
+        assert all(modality in ["S2L2A", "DEL", "GRA", "ESA_LC", "CM"] for modality in modalities)
         assert len(modalities) > 0, "modalities must not be empty"
         assert "S2L2A" in modalities, "At least S2L2A must be present in the modalities"
         self.modalities = modalities
@@ -157,22 +154,16 @@ class EMSImageDataset(Dataset):
         filtered = {}
         for modality, modality_files in files.items():
             filtered[modality] = sorted(
-                file_path
-                for file_path in modality_files
-                if self._file_id(file_path) in intersection
+                file_path for file_path in modality_files if self._file_id(file_path) in intersection
             )
-            assert (
-                len(filtered[modality]) > 0
-            ), f"no files found for modality {modality}"
+            assert len(filtered[modality]) > 0, f"no files found for modality {modality}"
 
         return filtered
 
     def _check_integrity(self):
         """Double check that the file IDs match at the same index across modalities."""
         lengths = [len(modality_files) for modality_files in self.files.values()]
-        assert all(
-            length == lengths[0] for length in lengths
-        ), "modalities have different number of files"
+        assert all(length == lengths[0] for length in lengths), "modalities have different number of files"
         # zip the files together
         zipped = zip(*self.files.values())
         for idx, file_paths in enumerate(zipped):
@@ -203,7 +194,7 @@ class EMSImageDataset(Dataset):
 
         match self.in_channels:
             case 12:
-                sample["image"] = image
+                return sample
             case 6:
                 bands = self.all_bands
                 image = sample["image"]  # h,w,c
@@ -219,18 +210,13 @@ class EMSImageDataset(Dataset):
                 NBR2 = normalized_difference(B11, B12)[..., np.newaxis]  # (w,h,1)
                 NDVI = normalized_difference(B08, B04)[..., np.newaxis]  # (w,h,1)
                 MNDWI = normalized_difference(B03, B11)[..., np.newaxis]
-                BAIS2 = (
-                    (1 - ((B06 * B07 * B8A) / B04) ** 0.5)
-                    * ((B12 - B8A) / ((B12 + B8A) ** 0.5) + 1)
-                )[..., np.newaxis]
+                BAIS2 = ((1 - ((B06 * B07 * B8A) / B04) ** 0.5) * ((B12 - B8A) / ((B12 + B8A) ** 0.5) + 1))[
+                    ..., np.newaxis
+                ]
                 MIRBI = (10 * B12 - 9.8 * B11 + 2)[..., np.newaxis]
-                MSAVI = (
-                    (2 * B08 + 1 - ((2 * B08 + 1) ** 2 - 8 * (B08 - B04)) ** 0.5) / 2
-                )[..., np.newaxis]
+                MSAVI = ((2 * B08 + 1 - ((2 * B08 + 1) ** 2 - 8 * (B08 - B04)) ** 0.5) / 2)[..., np.newaxis]
 
-                new_features = np.concatenate(
-                    (NBR2, NDVI, MNDWI, BAIS2, MIRBI, MSAVI), axis=-1
-                )  # (w,h,6)
+                new_features = np.concatenate((NBR2, NDVI, MNDWI, BAIS2, MIRBI, MSAVI), axis=-1)  # (w,h,6)
                 image = min_max_scaler(new_features)
                 sample["image"] = image
             case 18:
@@ -248,18 +234,13 @@ class EMSImageDataset(Dataset):
                 NBR2 = normalized_difference(B11, B12)[..., np.newaxis]  # (w,h,1)
                 NDVI = normalized_difference(B08, B04)[..., np.newaxis]  # (w,h,1)
                 MNDWI = normalized_difference(B03, B11)[..., np.newaxis]
-                BAIS2 = (
-                    (1 - ((B06 * B07 * B8A) / B04) ** 0.5)
-                    * ((B12 - B8A) / ((B12 + B8A) ** 0.5) + 1)
-                )[..., np.newaxis]
+                BAIS2 = ((1 - ((B06 * B07 * B8A) / B04) ** 0.5) * ((B12 - B8A) / ((B12 + B8A) ** 0.5) + 1))[
+                    ..., np.newaxis
+                ]
                 MIRBI = (10 * B12 - 9.8 * B11 + 2)[..., np.newaxis]
-                MSAVI = (
-                    (2 * B08 + 1 - ((2 * B08 + 1) ** 2 - 8 * (B08 - B04)) ** 0.5) / 2
-                )[..., np.newaxis]
+                MSAVI = ((2 * B08 + 1 - ((2 * B08 + 1) ** 2 - 8 * (B08 - B04)) ** 0.5) / 2)[..., np.newaxis]
 
-                new_features = np.concatenate(
-                    (NBR2, NDVI, MNDWI, BAIS2, MIRBI, MSAVI), axis=-1
-                )  # (w,h,6)
+                new_features = np.concatenate((NBR2, NDVI, MNDWI, BAIS2, MIRBI, MSAVI), axis=-1)  # (w,h,6)
                 new_features = min_max_scaler(new_features)
                 image = np.concatenate((image, new_features), axis=-1)  # (w,h,12+6)
                 sample["image"] = image
@@ -315,6 +296,4 @@ def normalized_difference(a, b):
 
 def min_max_scaler(a):
     """Expects numpy vector in h,w,c format"""
-    return (a - np.min(a, axis=(0, 1))) / (
-        np.max(a, axis=(0, 1)) - np.min(a, axis=(0, 1))
-    )
+    return (a - np.min(a, axis=(0, 1))) / (np.max(a, axis=(0, 1)) - np.min(a, axis=(0, 1)))
