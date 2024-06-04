@@ -7,12 +7,12 @@ build-backend = "setuptools.build_meta"
 name = "logic"
 description = "My small project"
 dependencies = [
-  "albumentations =1.4.0 #>= 1.3.0, < 2",
+  "albumentations == 1.4.0", #>= 1.3.0, < 2",
   "ipykernel >= 6.23.1, < 7.0.0",
   "pytorch-lightning >= 1.9.5, < 2",
   "torchmetrics >= 0.11.4, < 1",
   "rasterio >= 1.3.7, < 2",
-  "tensorboard >= 2.13.0, < 3"
+  "tensorboard >= 2.13.0, < 3",
   "torch @ https://download.pytorch.org/whl/cu117/torch-2.0.1%2Bcu117-cp310-cp310-linux_x86_64.whl",
   "torchvision @ https://download.pytorch.org/whl/cu117/torchvision-0.15.2%2Bcu117-cp310-cp310-linux_x86_64.whl",
 ]
