@@ -14,3 +14,11 @@ notebooks/*
 tools/prova_args.py
 tools/mit_conversion.ipynb
 *.zip
+
+.new_env/*
+.new_env/*/*/*
+venv_cp/*/*/*
+venv_cp/*/*/*
+venv_cp/*
+src/logic.egg-info/PKG-INFO
+src/logic.egg-info/SOURCES.txt
